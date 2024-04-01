@@ -1,0 +1,5 @@
+# --remove-orphans
+
+alias rebuild="$command build --pull"
+alias php="$command run --rm easily php"
+alias art="php artisan"

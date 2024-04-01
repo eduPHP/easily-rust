@@ -1,0 +1,25 @@
+version: '3'
+
+networks:
+  easily:
+    external: true
+
+services:
+  easily:
+    build:
+      context: .
+      dockerfile: ../../config/php/Dockerfile.easily
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+        - DOCKER_GID=${DOCKER_GID}
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/code:/app
+      - ../../config/php/${PHP_VERSION}/config/php-fpm.conf:/usr/local/etc/php-fpm.conf
+      - ../../config/php/${PHP_VERSION}/config/www.conf:/usr/local/etc/php-fpm.d/www.conf
+      - ../../config/php/${PHP_VERSION}/config/php.ini:/usr/local/etc/php/php.ini
+    networks:
+      - easily

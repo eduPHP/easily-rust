@@ -1,0 +1,6 @@
+{
+    "name": "eduphp/testing",
+    "require": {
+        "php": "8.1.*"
+    }
+}

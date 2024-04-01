@@ -1,0 +1,141 @@
+version: '3'
+
+networks:
+  easily:
+    external: true
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ../../config/nginx/Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../../config/nginx/conf.d:/etc/nginx/conf.d/
+      - ../../config/nginx/includes:/etc/nginx/include
+      - ./certs:/etc/nginx/certs
+      - ${SERVER_ROOT}:/var/www/html
+    depends_on:
+      - php
+      - redis
+      - mysql
+      - mailhog
+    networks:
+      - easily
+
+  mysql:
+    image: mysql:8
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: secret
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    entrypoint:
+      sh -c "
+      echo 'SET GLOBAL local_infile=1; CREATE DATABASE IF NOT EXISTS ${DB_DATABASE}; CREATE DATABASE IF NOT EXISTS ${DB_DATABASE}_testing;' > /docker-entrypoint-initdb.d/init.sql;
+      /usr/local/bin/docker-entrypoint.sh --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      "
+    networks:
+      - easily
+
+  php:
+    build:
+      context: .
+      dockerfile: ../../config/php/${PHP_VERSION}/Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    ports:
+      - "9000:9000"
+    volumes:
+      - ${SERVER_ROOT}:/var/www/html
+      - ../../config/php/${PHP_VERSION}/config/php-fpm.conf:/usr/local/etc/php-fpm.conf
+      - ../../config/php/${PHP_VERSION}/config/www.conf:/usr/local/etc/php-fpm.d/www.conf
+      - ../../config/php/${PHP_VERSION}/config/php.ini:/usr/local/etc/php/php.ini
+    networks:
+      - easily
+
+  ftp:
+    image: bogem/ftp
+    ports:
+      - "21:21"
+      - "47400-47470:47400-47470"
+    environment:
+      - FTP_USER=${FTP_USER}
+      - FTP_PASS=${FTP_PASS}
+      - PASV_ADDRESS=127.0.0.1
+    networks:
+      - easily
+  sftp:
+    image: atmoz/sftp
+    ports:
+      - "2222:22"
+    command: ${FTP_USER}:${FTP_PASS}:1001
+    networks:
+      - easily
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - easily
+
+  composer:
+    build:
+      context: .
+      dockerfile: ../../config/php/${PHP_VERSION}/Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    volumes:
+      - ${SERVER_ROOT}:/var/www/html
+    depends_on:
+      - php
+    entrypoint: [ 'composer', '--ignore-platform-reqs' ]
+    networks:
+      - easily
+
+  npm:
+    image: node:current-alpine
+    volumes:
+      - ${SERVER_ROOT}:/var/www/html
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "5173:5173"
+    working_dir: /var/www/html
+    entrypoint: [ 'npm', 'run', 'watch' ]
+    networks:
+      - easily
+
+  artisan:
+    build:
+      context: .
+      dockerfile: ../../config/php/${PHP_VERSION}/Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    volumes:
+      - ${SERVER_ROOT}:/var/www/html
+    depends_on:
+      - mysql
+    entrypoint: [ 'php', '/var/www/html/artisan' ]
+    networks:
+      - easily
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - easily
