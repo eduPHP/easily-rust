@@ -1,16 +1,10 @@
-use std::process::{Command, Stdio};
-use std::io;
-use std::io::Write;
+use std::path::Path;
+
+use crate::{cmd::{run, grep}, config};
 
 #[allow(dead_code)]
 pub fn ps() {
-    let output = Command::new("docker")
-        .arg("ps")
-        .stdout(Stdio::piped())
-        .output()
-        .expect("Failed to execute command");
-    
-    io::stdout().write_all(&output.stdout).unwrap();
+    run_command(&["ps"]);
 }
 
 pub fn create_network_if_it_doesnt_exist(name: &str) {
@@ -20,27 +14,41 @@ pub fn create_network_if_it_doesnt_exist(name: &str) {
 
     println!("{} network not found, creating it", name);
 
-    Command::new("docker")
-        .args(["network", "create", name,"--attachable"])
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap(); 
+    run("docker", &["network", "create", name,"--attachable"]).unwrap(); 
 }
 
 fn network_exists(name: &str) -> bool {
-    let ps_child = Command::new("docker")
-        .args(["network", "ls", "--format","\"{{.Name}}\""])
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap(); 
+    let ps_child = run(
+        "docker", 
+        &["network", "ls", "--format","\"{{.Name}}\""]
+    ).unwrap();
 
-    let filtered = Command::new("grep")
-        .arg(name)
-        .stdin(Stdio::from(ps_child.stdout.unwrap())) // Pipe through.
-        .stdout(Stdio::piped())
-        .output();
+    return grep(ps_child.stdout, name);
+}
 
-    let response: String = String::from_utf8(filtered.unwrap().stdout).expect("Failed to convert stdout");
 
-    return response.contains(name);
+pub fn start(name: &str, yaml: &str) {
+    let temp_name = format!("{}-test", name);
+    let yaml = &config::path(yaml);
+    if !Path::new(yaml).exists() {
+        
+    }
+    let args = ["compose", "-f", yaml, "-p", &temp_name, "up", "-d"];
+    run_command(&args);
+}
+
+pub fn stop(name: &str, yaml: &str) {
+    let temp_name = format!("{}-test", name);
+    let yaml = &config::path(yaml);
+    let args = ["compose", "-f", yaml, "-p", &temp_name, "kill"];
+    run_command(&args);
+}
+
+fn run_command(args: &[&str]) {
+    let mut output = run("docker", args).unwrap();
+
+    let ecode = output.wait()
+        .expect("failed to wait on child");
+
+    assert!(ecode.success());
 }

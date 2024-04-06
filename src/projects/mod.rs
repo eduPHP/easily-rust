@@ -1,26 +1,30 @@
 use std::collections::HashMap;
-use std::fs;
+use std::io;
 use std::path::Path;
-use std::env;
-use serde::{Deserialize, Serialize};
-use slug::slugify;
-
+use regex::Regex;
+use crate::config;
+use crate::config::load;
+use crate::config::parent_dir;
+use crate::config::path;
+use crate::config::save;
+use crate::config::Config;
 use crate::docker;
-use crate::print_help;
+use crate::msg;
 use crate::ssl;
 use crate::stubs;
 use crate::composer;
 
-#[derive(Serialize, Deserialize)]
-struct Config {
-    aliases: HashMap<String, String>,
-}
 
 pub fn try_to_guess() -> String {
-    let composer = composer::read();
-    let config: Config = config();
+    if !composer::exists() {
+        msg::panic("Could not guess the project name, please input it as an argument.");
+    }
 
-    
+    let composer = composer::read();
+    let mut config: Config = load();
+    config.aliases.insert("s90dev/fidelis-elite".to_owned(), "fidelis".to_owned());
+    save(&config);
+
     if !config.aliases.contains_key(composer.name.trim()) {
         return composer.name.to_string();
     }
@@ -28,43 +32,23 @@ pub fn try_to_guess() -> String {
     return config.aliases.get(composer.name.trim()).unwrap().to_owned();
 }
 
-fn config() -> Config {
-    let projects_config_path = format!("{}/.config/easily/projects.json", env!("HOME").to_string());
-    let content = fs::read_to_string(projects_config_path).expect("Error reading projects config file");
+// fn config() -> Config {
+//     let projects_config_path = format!("{}/.config/easily/projects.json", env!("HOME").to_string());
+//     let content = fs::read_to_string(projects_config_path).expect("Error reading projects config file");
 
-    let config: Config = serde_json::from_str(&content).expect("Error parsing projects config file");
+//     let config: Config = serde_json::from_str(&content).expect("Error parsing projects config file");
 
-    return config;
-}
+//     return config;
+// }
 
-#[allow(unused_variables)]
-
-pub fn run(name: &str) {
+pub fn start(name: &str) {
+    msg::info(format!("Starting project {}", name).as_str());
     docker::create_network_if_it_doesnt_exist("easily");
-
-    // todo: verificar certificados
-
-    // verificar aliases
-
-    if !composer::exists() {
-        println!("composer.json not found, please run this command from the project's folder.");
-        print_help();
-        return;
-    }
-
-    let composer = composer::read();
-    let project = composer.name;
-    let php = &composer.require.php.to_owned()[0..3];
-    
-    println!("Project {} running PHP {}", project, &php);
-
-    // let home: &str = env!("HOME");
-    // let dir: &str = env!("PWD");
-    // let name: String = std::env::var("APP_NAME").unwrap();
-
-    // println!("home: {}\nname: {}\nfolder: {}", home, name.trim(), dir);
-
-    create_structure();
+    self::create_structure();
+    ssl::certs(&name);
+    let yaml = format!("projects/{}/compose.yaml", name);
+    let _ = docker::start(name, &yaml);
+    println!();
 }
 
 fn create_structure() {
@@ -81,22 +65,22 @@ fn create_structure() {
         create_file(path, content)
     }
 
-    let projects_config_path = format!("{}/.config/easily/projects.json", env!("HOME").to_string());
+    let projects_config_path = config::path("projects.json");
     if ! Path::new(&projects_config_path).exists() {
-        write_string_to_file(
-            Path::new(&projects_config_path), 
+        self::write_string_to_file(
+            Path::new(&projects_config_path),
             r#"{"aliases": {}}"#
         ).expect("Error trying to write projects config file");
     }
 }
 
 pub fn create_file(path: &str, content: String) {
-    let config_path: String = format!("{}/.config/easily/{}", env!("HOME").to_string(), path);
+    let config_path: String = config::path(path);
 
-    create_folder(&config_path);
+    self::create_folder(&config_path);
 
     let path = Path::new(&config_path);
-    write_string_to_file(path, &content).expect("Error trying to write file");
+    self::write_string_to_file(path, &content).expect("Error trying to write file");
 }
 
 pub fn create_folder(full_path: &str) {
@@ -111,12 +95,61 @@ pub fn write_string_to_file(path: &Path, data: &str) -> Result<(), Box<dyn std::
     Ok(())
 }
 
-pub(crate) fn create(name: &str) {
-    println!("Creating project {}", name);
+pub fn create(name: &str) {
+    msg::info(format!("Creating project {}", name).as_str());
+    ssl::certs(&name);
+    let composer = composer::read();
+    let php = get_php_version_from_composer(&composer.require.php);
 
-    // create certificates
-
-    ssl::certs(slugify(&name).as_str());
+    // replace php version option to specific
     // create compose.yaml
-    // run start
+    let yaml = format!("projects/{}/compose.yaml", name);
+    if !Path::new(&path(&yaml)).exists() {
+        self::create_file(
+            &yaml,
+            stubs::docker::compose(&php, &name)
+        );
+    }
+
+    let _ = docker::start(name, &yaml);
+    println!();
+}
+
+pub fn stop(name: &str) {
+    msg::info(format!("Stopping project {}", name).as_str());
+    let yaml = format!("projects/{}/compose.yaml", name);
+    let _ = docker::stop(name, &yaml);
+    println!();
+}
+
+
+fn get_php_version_from_composer(version_str: &str) -> String {
+    let versions = version_str.split("|").collect::<Vec<&str>>();
+    let regex = Regex::new(r#"[^\d\.]"#).unwrap();
+    if versions.len() > 1 {
+        let version = versions.last().unwrap().to_owned();
+        return regex.replace_all(version, "").trim()[0..3].to_string();
+    } else {
+        return regex.replace_all(&version_str, "")[0..3].to_string();
+    }
+}
+
+pub fn init() {
+    // perguntar pasta (padrao, um nivel acima da atual)
+    let parent = parent_dir();
+    
+    println!("Plase, input the folder where your projects are stored: ({parent})");
+    let mut buffer = String::from(parent);
+    io::stdin().read_line(&mut buffer).unwrap();
+    let input_folder = buffer.trim();
+    if ! Path::new(&input_folder).exists() {
+        println!("Path \"{input_folder}\" doesn't exist!");
+        init();
+        return;
+    }
+    
+    // let mut conf = load();
+    // conf.path = input_folder.to_string();
+    // set("path", input_folder.to_owned());
+    // criar web, mysql, redis, mailhog
 }

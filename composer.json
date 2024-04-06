@@ -1,6 +1,6 @@
 {
-    "name": "eduphp/testing",
+    "name": "s90dev/fidelis-elite",
     "require": {
-        "php": "8.1.*"
+        "php": "^8.1.*"
     }
 }

@@ -1,11 +1,12 @@
 use std::{path::Path, process::{Command, Stdio}};
 
-use crate::projects::{create_folder, write_string_to_file};
+use slug::slugify;
 
-fn root() {
-    let home = env!("HOME");
-    let key_path = format!("{}/.config/easily/ssl/rootCA.key", home);
-    let pem_path = format!("{}/.config/easily/ssl/rootCA.pem", home);
+use crate::{config, projects::{create_folder, write_string_to_file}};
+
+fn create_root_ca() {
+    let key_path = config::path("ssl/rootCA.key");
+    let pem_path = config::path("ssl/rootCA.pem");
 
     if Path::new(&pem_path).exists() {
         return;
@@ -31,19 +32,22 @@ fn root() {
         .unwrap();
 }
 
+pub fn certs(name: &str) {
+    create_root_ca();
+    let domain = project_name_to_domain(&name).to_owned();
 
-pub fn certs(domain: &str) {
-    root();
-
-    let home = env!("HOME");
-    let pem_path = format!("{}/.config/easily/ssl/rootCA.pem", home);
-    let key_path = format!("{}/.config/easily/ssl/rootCA.key", home);
-    let keyfile = format!("{}/ssl/certs/{}.test.key", home, domain);
-    let csrfile = format!("{}/ssl/certs/{}.test.csr", home, domain);
-    let crtfile = format!("{}/ssl/certs/{}.test.crt", home, domain);
-    let extfile = format!("{}/ssl/certs/{}.ext", home, domain);
+    let pem_path = config::path("ssl/rootCA.pem");
+    let key_path = config::path("ssl/rootCA.key");
+    let keyfile = config::path(format!("projects/{}/certs/{}.test.key", name, domain).as_str());
+    let csrfile = config::path(format!("projects/{}/certs/{}.test.csr", name, domain).as_str());
+    let crtfile = config::path(format!("projects/{}/certs/{}.test.crt", name, domain).as_str());
+    let extfile = config::path(format!("projects/{}/certs/{}.ext", name, domain).as_str());
 
     create_folder(&crtfile);
+
+    if Path::new(&csrfile).exists() {
+        return;
+    }
 
     Command::new("openssl")
         .args(["genrsa", "-out", &keyfile, "2048"])
@@ -71,18 +75,29 @@ DNS.1 = {}.test", domain);
     let _ = write_string_to_file(Path::new(&extfile), &ext_content);
     
     Command::new("openssl")
-    .args([
-        "x509", "-req",
-        "-in", &csrfile,
-        "-CA", &pem_path,
-        "-CAkey", &key_path,
-        "-CAcreateserial",
-        "-out", &crtfile,
-        "-days", "1825", "-sha256",
-        "-extfile", &extfile,
-        "-passin", "pass:secret"
-    ])
-    .stdout(Stdio::piped())
-    .output()
-    .unwrap();
+        .args([
+            "x509", "-req",
+            "-in", &csrfile,
+            "-CA", &pem_path,
+            "-CAkey", &key_path,
+            "-CAcreateserial",
+            "-out", &crtfile,
+            "-days", "1825", "-sha256",
+            "-extfile", &extfile,
+            "-passin", "pass:secret"
+        ])
+        .stdout(Stdio::piped())
+        .output()
+        .unwrap();
+}
+
+fn project_name_to_domain(name: &str) -> String {
+    let parts = name.split("/");
+    let parts = parts.collect::<Vec<&str>>();
+
+    if parts.len() == 1 {
+        return parts.first().unwrap().to_string();
+    }
+
+    return format!("{}.{}", slugify(parts[1..parts.len()].join("-")), parts.first().unwrap());
 }

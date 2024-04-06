@@ -3,8 +3,10 @@ mod projects;
 pub mod composer;
 pub mod stubs;
 pub mod ssl;
+pub mod msg;
+pub mod cmd;
+pub mod config;
 use std::env;
-
 use dotenv::dotenv;
 
 fn main() {
@@ -18,27 +20,18 @@ fn main() {
     let action = args[1].trim();
     match action {
         "create" => {
-            if !composer::exists() {
-                println!("Could not guess the project name, please input it as an argument.");
-                print_help();
-                return;
-            }
-            let project = projects::try_to_guess();
-
-            projects::create(&project);
-
+            // personalizado: php, composer, artisan
+            projects::create(&projects::try_to_guess());
         },
+        "stop" => {
+            projects::stop(&projects::try_to_guess());
+        },
+        "init" => projects::init(),
         "start" => {
             if args.len() <= 2 {
-                if !composer::exists() {
-                    println!("Could not guess the project name, please input it as an argument.");
-                    print_help();
-                    return;
-                }
-                let project = projects::try_to_guess();
-                projects::run(&project);
+                projects::start(&projects::try_to_guess());
             } else {
-                projects::run(args[2].trim());
+                projects::start(args[2].trim());
             }
         },
         _ => print_help(),
@@ -47,10 +40,10 @@ fn main() {
 
 fn print_help() {
     println!("Usage: easily [start|stop|create|remove] <project>");
-    println!("- start <project>\t Starts the project");
-    println!("- stop <?project>\t Stops the given project or the project currently running");
-    println!("- restart <?project>\t Restart the given project or the project currently running");
-    println!("- create <project>\t Creates a new project");
+    println!("- start <?project>\t Starts the given project or the project in the current directory");
+    println!("- stop <?project>\t Stops the given project or the project in the current directory");
+    println!("- restart <?project>\t Restart the given project or the project in the current directory");
+    println!("- create Creates a new project");
     println!("- remove <project>\t Removes the project containers from docker");
     println!("- help\t\t\t Shows this help message\n");
 }
