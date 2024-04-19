@@ -42,3 +42,13 @@ impl Default for Config {
         Self { path: parent_dir(), aliases: HashMap::new() }
     }
 }
+
+pub trait Save {
+    fn save(&self);
+}
+
+impl Save for Config {
+    fn save(&self) {
+        confy::store("easily", "config", &self).unwrap();
+    }
+}

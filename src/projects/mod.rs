@@ -6,7 +6,7 @@ use crate::config;
 use crate::config::load;
 use crate::config::parent_dir;
 use crate::config::path;
-use crate::config::save;
+use crate::config::Save;
 use crate::config::Config;
 use crate::docker;
 use crate::msg;
@@ -21,9 +21,10 @@ pub fn try_to_guess() -> String {
     }
 
     let composer = composer::read();
+    
     let mut config: Config = load();
     config.aliases.insert("s90dev/fidelis-elite".to_owned(), "fidelis".to_owned());
-    save(&config);
+    config.save();
 
     if !config.aliases.contains_key(composer.name.trim()) {
         return composer.name.to_string();

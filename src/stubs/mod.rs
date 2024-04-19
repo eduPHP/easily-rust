@@ -156,19 +156,19 @@ CMD ["php-fpm", "-y", "/usr/local/etc/php-fpm.conf", "-R"]
 pub mod docker {
     use slug::slugify;
     use std::{env, os::unix::fs::MetadataExt};
-
-    pub fn compose(php: &str, name: &str) -> String {
+    
+    pub fn compose_global() {
         let uid = std::fs::metadata("/proc/self").map(|m| m.uid()).unwrap();
         let gid = std::fs::metadata("/proc/self").map(|m| m.gid()).unwrap();
-        let server_root = env::current_dir().unwrap();
+        let server_root = env::current_dir().unwrap().parent();
         let server_root = server_root.display();
-        let db_name = slugify(name);
+        let db_name = "easily";
         return format!(r##"networks:
-    easily:
-        external: true
+easily:
+    external: true
 
 services:
-    app:
+    nginx:
         build:
             context: .
             dockerfile: ../../nginx/Dockerfile
@@ -183,11 +183,6 @@ services:
             - ../../nginx/includes:/etc/nginx/include
             - ./certs:/etc/nginx/certs
             - {server_root}:/var/www/html
-        depends_on:
-            - php
-            - redis
-            - mysql
-            - mailhog
         networks:
             - easily
 
@@ -209,6 +204,34 @@ services:
         networks:
             - easily
 
+    redis:
+        image: redis:alpine
+        ports:
+            - "6379:6379"
+        networks:
+            - easily
+
+    mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+            - "1025:1025"
+            - "8025:8025"
+        networks:
+            - easily
+"##);
+    }
+
+    pub fn compose(php: &str, name: &str) -> String {
+        let uid = std::fs::metadata("/proc/self").map(|m| m.uid()).unwrap();
+        let gid = std::fs::metadata("/proc/self").map(|m| m.gid()).unwrap();
+        let server_root = env::current_dir().unwrap();
+        let server_root = server_root.display();
+        let db_name = slugify(name);
+        return format!(r##"networks:
+    easily:
+        external: true
+
+services:
     php:
         build:
             context: .
@@ -220,13 +243,6 @@ services:
             - "9000:9000"
         volumes:
             - {server_root}:/var/www/html
-        networks:
-            - easily
-
-    redis:
-        image: redis:alpine
-        ports:
-            - "6379:6379"
         networks:
             - easily
 
@@ -270,14 +286,6 @@ services:
         depends_on:
             - mysql
         entrypoint: [ 'php', '/var/www/html/artisan' ]
-        networks:
-            - easily
-
-    mailhog:
-        image: mailhog/mailhog:latest
-        ports:
-            - "1025:1025"
-            - "8025:8025"
         networks:
             - easily
 "##);
