@@ -154,24 +154,26 @@ CMD ["php-fpm", "-y", "/usr/local/etc/php-fpm.conf", "-R"]
 }
 
 pub mod docker {
-    use slug::slugify;
     use std::{env, os::unix::fs::MetadataExt};
+
+    use crate::config::{load, Config};
     
-    pub fn compose_global() {
+    pub fn compose_global() -> String {
+        let config: Config = load();
+
         let uid = std::fs::metadata("/proc/self").map(|m| m.uid()).unwrap();
         let gid = std::fs::metadata("/proc/self").map(|m| m.gid()).unwrap();
-        let server_root = env::current_dir().unwrap().parent();
-        let server_root = server_root.display();
+        let server_root = config.path;
         let db_name = "easily";
         return format!(r##"networks:
-easily:
-    external: true
+    easily:
+        external: true
 
 services:
     nginx:
         build:
             context: .
-            dockerfile: ../../nginx/Dockerfile
+            dockerfile: ../nginx/Dockerfile
             args:
                 - UID={uid}
                 - GID={gid}
@@ -179,9 +181,9 @@ services:
             - "80:80"
             - "443:443"
         volumes:
-            - ../../nginx/conf.d:/etc/nginx/conf.d/
-            - ../../nginx/includes:/etc/nginx/include
-            - ./certs:/etc/nginx/certs
+            - ../nginx/conf.d:/etc/nginx/conf.d/
+            - ../nginx/includes:/etc/nginx/include
+            - ../nginx/certs:/etc/nginx/certs
             - {server_root}:/var/www/html
         networks:
             - easily
@@ -221,12 +223,11 @@ services:
 "##);
     }
 
-    pub fn compose(php: &str, name: &str) -> String {
+    pub fn compose(php: &str, _name: &str) -> String {
         let uid = std::fs::metadata("/proc/self").map(|m| m.uid()).unwrap();
         let gid = std::fs::metadata("/proc/self").map(|m| m.gid()).unwrap();
         let server_root = env::current_dir().unwrap();
         let server_root = server_root.display();
-        let db_name = slugify(name);
         return format!(r##"networks:
     easily:
         external: true

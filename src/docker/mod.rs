@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::{cmd::{run, grep}, config};
 
 #[allow(dead_code)]
@@ -30,9 +28,11 @@ fn network_exists(name: &str) -> bool {
 pub fn start(name: &str, yaml: &str) {
     let temp_name = format!("{}-test", name);
     let yaml = &config::path(yaml);
-    if !Path::new(yaml).exists() {
-        
-    }
+    let global_yaml = &config::path("projects/global-compose.yaml");
+    
+    let args = ["compose", "-f", global_yaml, "-p", "easily", "up", "-d"];
+    run_command(&args);
+    
     let args = ["compose", "-f", yaml, "-p", &temp_name, "up", "-d"];
     run_command(&args);
 }
@@ -41,6 +41,12 @@ pub fn stop(name: &str, yaml: &str) {
     let temp_name = format!("{}-test", name);
     let yaml = &config::path(yaml);
     let args = ["compose", "-f", yaml, "-p", &temp_name, "kill"];
+    run_command(&args);
+}
+
+pub fn halt() {
+    let global_yaml = &config::path("projects/global-compose.yaml");
+    let args = ["compose", "-f", global_yaml, "-p", "easily", "kill"];
     run_command(&args);
 }
 

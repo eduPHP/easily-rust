@@ -38,10 +38,10 @@ pub fn certs(name: &str) {
 
     let pem_path = config::path("ssl/rootCA.pem");
     let key_path = config::path("ssl/rootCA.key");
-    let keyfile = config::path(format!("projects/{}/certs/{}.test.key", name, domain).as_str());
-    let csrfile = config::path(format!("projects/{}/certs/{}.test.csr", name, domain).as_str());
-    let crtfile = config::path(format!("projects/{}/certs/{}.test.crt", name, domain).as_str());
-    let extfile = config::path(format!("projects/{}/certs/{}.ext", name, domain).as_str());
+    let keyfile = config::path(format!("nginx/certs/{}.test.key", domain).as_str());
+    let csrfile = config::path(format!("nginx/certs/{}.test.csr", domain).as_str());
+    let crtfile = config::path(format!("nginx/certs/{}.test.crt", domain).as_str());
+    let extfile = config::path(format!("nginx/certs/{}.ext", domain).as_str());
 
     create_folder(&crtfile);
 

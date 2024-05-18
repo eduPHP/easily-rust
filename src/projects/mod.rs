@@ -60,6 +60,7 @@ fn create_structure() {
         ("nginx/conf.d/default.conf", stubs::nginx::default()),
         ("nginx/includes/https-redirect.conf", stubs::nginx::include_redirect()),
         ("nginx/includes/laravel.conf", stubs::nginx::include_laravel()),
+        ("projects/global-compose.yaml", stubs::docker::compose_global()),
     ]);
 
     for (path, content) in map {
@@ -124,6 +125,13 @@ pub fn stop(name: &str) {
 }
 
 
+pub fn halt(name: &str) {
+    docker::halt();
+    stop(name);
+    println!();
+}
+
+
 fn get_php_version_from_composer(version_str: &str) -> String {
     let versions = version_str.split("|").collect::<Vec<&str>>();
     let regex = Regex::new(r#"[^\d\.]"#).unwrap();
@@ -136,6 +144,7 @@ fn get_php_version_from_composer(version_str: &str) -> String {
 }
 
 pub fn init() {
+    create_structure();
     // perguntar pasta (padrao, um nivel acima da atual)
     let parent = parent_dir();
     

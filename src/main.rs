@@ -27,6 +27,9 @@ fn main() {
             projects::stop(&projects::try_to_guess());
         },
         "init" => projects::init(),
+        "halt" => {
+            projects::halt(&projects::try_to_guess());
+        },
         "start" => {
             if args.len() <= 2 {
                 projects::start(&projects::try_to_guess());
