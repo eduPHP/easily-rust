@@ -1,6 +1,6 @@
 pub mod nginx {
     pub fn dockerfile() -> String {
-        return r#"FROM nginx:stable-alpine
+        r#"FROM nginx:stable-alpine
 
 ARG UID
 ARG GID
@@ -15,10 +15,10 @@ RUN addgroup -g ${GID} --system laravel
 RUN adduser -G laravel --system -D -s /bin/sh -u ${UID} laravel
 RUN sed -i "s/user  nginx/user laravel/g" /etc/nginx/nginx.conf
 
-RUN mkdir -p /var/www/html"#.to_owned();
+RUN mkdir -p /var/www/html"#.to_owned()
     }
     pub fn default () -> String {
-        return r"include include/https-redirect.conf;
+        r"include include/https-redirect.conf;
 map $ssl_server_name $ssl_domain_name {
     volatile;
     hostnames;
@@ -28,7 +28,7 @@ map $ssl_server_name $ssl_domain_name {
 server {
     include include/laravel.conf;
 }
-".to_owned();
+".to_owned()
     }
 
     pub fn include_redirect() -> String {
@@ -40,7 +40,7 @@ server {
     }
 
     pub fn include_laravel() -> String {
-        return r#"listen 443 ssl http2;
+        r#"listen 443 ssl http2;
 listen [::]:443 ssl http2;
 server_name "~^(?<app>.+)\.test";
 index index.php index.html;
@@ -61,13 +61,13 @@ location ~ \.php$ {
     include fastcgi_params;
     fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
     fastcgi_param PATH_INFO $fastcgi_path_info;
-}"#.to_owned();
+}"#.to_owned()
     }
 }
 
 pub mod php {
     pub fn dockerfile81() -> String {
-        return r#"FROM php:8.1-fpm-alpine
+        r#"FROM php:8.1-fpm-alpine
 
 ARG UID
 ARG GID
@@ -106,11 +106,11 @@ RUN mkdir -p /usr/src/php/ext/redis \
 USER laravel
 
 CMD ["php-fpm", "-y", "/usr/local/etc/php-fpm.conf", "-R"]
-"#.to_owned();
+"#.to_owned()
     }
 
     pub fn dockerfile82() -> String {
-        return r#"FROM php:8.2-fpm-alpine
+        r#"FROM php:8.2-fpm-alpine
 
 ARG UID
 ARG GID
@@ -149,7 +149,7 @@ RUN mkdir -p /usr/src/php/ext/redis \
 USER laravel
 
 CMD ["php-fpm", "-y", "/usr/local/etc/php-fpm.conf", "-R"]
-"#.to_owned();
+"#.to_owned()
     }
 }
 
@@ -165,7 +165,7 @@ pub mod docker {
         let gid = std::fs::metadata("/proc/self").map(|m| m.gid()).unwrap();
         let server_root = config.path;
         let db_name = "easily";
-        return format!(r##"networks:
+        format!(r##"networks:
     easily:
         external: true
 
@@ -220,7 +220,7 @@ services:
             - "8025:8025"
         networks:
             - easily
-"##);
+"##)
     }
 
     pub fn compose(php: &str, _name: &str) -> String {
@@ -228,7 +228,7 @@ services:
         let gid = std::fs::metadata("/proc/self").map(|m| m.gid()).unwrap();
         let server_root = env::current_dir().unwrap();
         let server_root = server_root.display();
-        return format!(r##"networks:
+        format!(r##"networks:
     easily:
         external: true
 
@@ -285,10 +285,10 @@ services:
         volumes:
             - {server_root}:/var/www/html
         depends_on:
-            - mysql
+            - php
         entrypoint: [ 'php', '/var/www/html/artisan' ]
         networks:
             - easily
-"##);
+"##)
     }
 }

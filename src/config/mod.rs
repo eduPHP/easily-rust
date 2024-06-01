@@ -21,6 +21,7 @@ pub fn load() -> Config {
     return conf;
 }
 
+#[allow(dead_code)]
 pub fn save(config: &Config) {
     confy::store("easily", "config", config).unwrap();
 }

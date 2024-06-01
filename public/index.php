@@ -9,7 +9,7 @@
 <body class="bg-gray-800 w-full">
     <div class="max-w-md mt-10 text-white mx-auto text-center">
         <div class="text-3xl">
-            Tambem TIAMO mamãezinha!
+            Test works!
         </div>
     </div>
 </body>

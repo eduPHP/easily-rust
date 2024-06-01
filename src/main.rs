@@ -1,11 +1,11 @@
 mod docker;
 mod projects;
-pub mod composer;
-pub mod stubs;
-pub mod ssl;
-pub mod msg;
-pub mod cmd;
-pub mod config;
+mod composer;
+mod stubs;
+mod ssl;
+mod msg;
+mod cmd;
+mod config;
 use std::env;
 use dotenv::dotenv;
 
