@@ -1,19 +1,20 @@
 use std::collections::HashMap;
 use std::io;
 use std::path::Path;
+
 use regex::Regex;
+
+use crate::composer;
 use crate::config;
+use crate::config::Config;
 use crate::config::load;
 use crate::config::parent_dir;
 use crate::config::path;
 use crate::config::Save;
-use crate::config::Config;
 use crate::docker;
 use crate::msg;
 use crate::ssl;
 use crate::stubs;
-use crate::composer;
-
 
 pub fn try_to_guess() -> String {
     if !composer::exists() {
@@ -21,9 +22,11 @@ pub fn try_to_guess() -> String {
     }
 
     let composer = composer::read();
-    
+
     let mut config: Config = load();
-    config.aliases.insert("s90dev/fidelis-elite".to_owned(), "fidelis".to_owned());
+    config
+        .aliases
+        .insert("s90dev/fidelis-elite".to_owned(), "fidelis".to_owned());
     config.save();
 
     if !config.aliases.contains_key(composer.name.trim()) {
@@ -45,7 +48,7 @@ pub fn try_to_guess() -> String {
 pub fn start(name: &str) {
     msg::info(format!("Starting project {}", name).as_str());
     docker::create_network_if_it_doesnt_exist("easily");
-    self::create_structure();
+    create_structure();
     ssl::certs(&name);
     let yaml = format!("projects/{}/compose.yaml", name);
     let _ = docker::start(name, &yaml);
@@ -58,9 +61,15 @@ fn create_structure() {
         ("php/8.2/Dockerfile", stubs::php::dockerfile82()),
         ("nginx/Dockerfile", stubs::nginx::dockerfile()),
         ("nginx/conf.d/default.conf", stubs::nginx::default()),
-        ("nginx/includes/https-redirect.conf", stubs::nginx::include_redirect()),
-        ("nginx/includes/laravel.conf", stubs::nginx::include_laravel()),
-        ("projects/global-compose.yaml", stubs::docker::compose_global()),
+        (
+            "nginx/includes/https-redirect.conf",
+            stubs::nginx::include_redirect(),
+        ),
+        // ("nginx/includes/laravel.conf", stubs::nginx::include_laravel()),
+        (
+            "projects/global-compose.yaml",
+            stubs::docker::compose_global(),
+        ),
     ]);
 
     for (path, content) in map {
@@ -68,21 +77,19 @@ fn create_structure() {
     }
 
     let projects_config_path = config::path("projects.json");
-    if ! Path::new(&projects_config_path).exists() {
-        self::write_string_to_file(
-            Path::new(&projects_config_path),
-            r#"{"aliases": {}}"#
-        ).expect("Error trying to write projects config file");
+    if !Path::new(&projects_config_path).exists() {
+        write_string_to_file(Path::new(&projects_config_path), r#"{"aliases": {}}"#)
+            .expect("Error trying to write projects config file");
     }
 }
 
 pub fn create_file(path: &str, content: String) {
     let config_path: String = config::path(path);
 
-    self::create_folder(&config_path);
+    create_folder(&config_path);
 
     let path = Path::new(&config_path);
-    self::write_string_to_file(path, &content).expect("Error trying to write file");
+    write_string_to_file(path, &content).expect("Error trying to write file");
 }
 
 pub fn create_folder(full_path: &str) {
@@ -107,11 +114,13 @@ pub fn create(name: &str) {
     // create compose.yaml
     let yaml = format!("projects/{}/compose.yaml", name);
     if !Path::new(&path(&yaml)).exists() {
-        self::create_file(
-            &yaml,
-            stubs::docker::compose(&php, &name)
-        );
+        create_file(&yaml, stubs::docker::compose(&php, &name));
     }
+    // create nginx file
+    let server = format!("nginx/sites/{}.conf", name);
+    // if !Path::new(&path(&server)).exists() {
+    create_file(&server, stubs::nginx::project(name));
+    // }
 
     let _ = docker::start(name, &yaml);
     println!();
@@ -124,40 +133,38 @@ pub fn stop(name: &str) {
     println!();
 }
 
-
 pub fn halt(name: &str) {
     docker::halt();
     stop(name);
     println!();
 }
 
-
 fn get_php_version_from_composer(version_str: &str) -> String {
     let versions = version_str.split("|").collect::<Vec<&str>>();
-    let regex = Regex::new(r#"[^\d\.]"#).unwrap();
-    if versions.len() > 1 {
+    let regex = Regex::new(r#"[^\d.]"#).unwrap();
+    return if versions.len() > 1 {
         let version = versions.last().unwrap().to_owned();
-        return regex.replace_all(version, "").trim()[0..3].to_string();
+        regex.replace_all(version, "").trim()[0..3].to_string()
     } else {
-        return regex.replace_all(&version_str, "")[0..3].to_string();
-    }
+        regex.replace_all(&version_str, "")[0..3].to_string()
+    };
 }
 
 pub fn init() {
     create_structure();
     // perguntar pasta (padrao, um nivel acima da atual)
     let parent = parent_dir();
-    
+
     println!("Plase, input the folder where your projects are stored: ({parent})");
     let mut buffer = String::from(parent);
     io::stdin().read_line(&mut buffer).unwrap();
     let input_folder = buffer.trim();
-    if ! Path::new(&input_folder).exists() {
+    if !Path::new(&input_folder).exists() {
         println!("Path \"{input_folder}\" doesn't exist!");
         init();
         return;
     }
-    
+
     // let mut conf = load();
     // conf.path = input_folder.to_string();
     // set("path", input_folder.to_owned());

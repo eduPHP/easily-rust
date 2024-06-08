@@ -1,8 +1,14 @@
-use std::{path::Path, process::{Command, Stdio}};
+use std::{
+    path::Path,
+    process::{Command, Stdio},
+};
 
 use slug::slugify;
 
-use crate::{config, projects::{create_folder, write_string_to_file}};
+use crate::{
+    config,
+    projects::{create_folder, write_string_to_file},
+};
 
 fn create_root_ca() {
     let key_path = config::path("ssl/rootCA.key");
@@ -15,17 +21,35 @@ fn create_root_ca() {
     create_folder(&pem_path);
 
     Command::new("openssl")
-        .args(["genrsa", "-des3", "-passout", "pass:secret", "-out", &key_path, "2048"])
+        .args([
+            "genrsa",
+            "-des3",
+            "-passout",
+            "pass:secret",
+            "-out",
+            &key_path,
+            "2048",
+        ])
         .stdout(Stdio::piped())
         .output()
         .unwrap();
     Command::new("openssl")
         .args([
-            "req", "-x509", "-new", "-nodes",
-            "-key", &key_path,
-            "-sha256","-days", "1825", "-passin", "pass:secret",
-            "-out", &pem_path,
-            "-subj", "/O=Acme/C=CA/ST=Canada/L=Canada/O=IT/CN=server.example.com"
+            "req",
+            "-x509",
+            "-new",
+            "-nodes",
+            "-key",
+            &key_path,
+            "-sha256",
+            "-days",
+            "1825",
+            "-passin",
+            "pass:secret",
+            "-out",
+            &pem_path,
+            "-subj",
+            "/O=Acme/C=CA/ST=Canada/L=Canada/O=IT/CN=server.example.com",
         ])
         .stdout(Stdio::piped())
         .output()
@@ -57,41 +81,57 @@ pub fn certs(name: &str) {
 
     Command::new("openssl")
         .args([
-            "req", "-new", 
-            "-key", &keyfile,
-            "-out", &csrfile,
-            "-subj", "/O=Acme/C=CA/ST=Canada/L=Canada/O=IT/CN=server.example.com"
+            "req",
+            "-new",
+            "-key",
+            &keyfile,
+            "-out",
+            &csrfile,
+            "-subj",
+            "/O=Acme/C=CA/ST=Canada/L=Canada/O=IT/CN=server.example.com",
         ])
         .stdout(Stdio::piped())
         .output()
         .unwrap();
-    let ext_content = format!("authorityKeyIdentifier=keyid,issuer
+    let ext_content = format!(
+        "authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = {}.test", domain);
+DNS.1 = {}.test",
+        domain
+    );
     let _ = write_string_to_file(Path::new(&extfile), &ext_content);
-    
+
     Command::new("openssl")
         .args([
-            "x509", "-req",
-            "-in", &csrfile,
-            "-CA", &pem_path,
-            "-CAkey", &key_path,
+            "x509",
+            "-req",
+            "-in",
+            &csrfile,
+            "-CA",
+            &pem_path,
+            "-CAkey",
+            &key_path,
             "-CAcreateserial",
-            "-out", &crtfile,
-            "-days", "1825", "-sha256",
-            "-extfile", &extfile,
-            "-passin", "pass:secret"
+            "-out",
+            &crtfile,
+            "-days",
+            "1825",
+            "-sha256",
+            "-extfile",
+            &extfile,
+            "-passin",
+            "pass:secret",
         ])
         .stdout(Stdio::piped())
         .output()
         .unwrap();
 }
 
-fn project_name_to_domain(name: &str) -> String {
+pub fn project_name_to_domain(name: &str) -> String {
     let parts = name.split("/");
     let parts = parts.collect::<Vec<&str>>();
 
@@ -99,5 +139,9 @@ fn project_name_to_domain(name: &str) -> String {
         return parts.first().unwrap().to_string();
     }
 
-    return format!("{}.{}", slugify(parts[1..parts.len()].join("-")), parts.first().unwrap());
+    return format!(
+        "{}.{}",
+        slugify(parts[1..parts.len()].join("-")),
+        parts.first().unwrap()
+    );
 }

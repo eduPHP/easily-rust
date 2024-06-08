@@ -1,9 +1,9 @@
-use std::{fs, path::Path};
 use serde::{Deserialize, Serialize};
+use std::{fs, path::Path};
 
 #[derive(Serialize, Deserialize)]
 pub struct Require {
-    pub php: String
+    pub php: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -20,11 +20,9 @@ pub fn exists() -> bool {
 pub fn read() -> Composer {
     let file_path: String = String::from("composer.json");
 
-    let content: String = fs::read_to_string(file_path)
-        .expect("Unable to read composer.json");
+    let content: String = fs::read_to_string(file_path).expect("Unable to read composer.json");
 
-    let composer: Composer = serde_json::from_str(&content)
-        .expect("Unable to parse composer.json");
+    let composer: Composer = serde_json::from_str(&content).expect("Unable to parse composer.json");
 
     return composer;
 }

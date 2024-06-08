@@ -17,7 +17,7 @@ pub fn warning(msg: &str) {
 }
 
 pub fn panic(msg: &str) {
-   error(msg);
-   print_help();
-   std::process::exit(1); 
+    error(msg);
+    print_help();
+    std::process::exit(1);
 }

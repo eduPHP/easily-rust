@@ -1,10 +1,13 @@
-use std::{io, process::{Child, ChildStdout, Command, Stdio}};
+use std::{
+    io,
+    process::{Child, ChildStdout, Command, Stdio},
+};
 
 pub fn run(command: &str, args: &[&str]) -> io::Result<Child> {
     return Command::new(command)
-    .args(args)
-    .stdout(Stdio::piped())
-    .spawn();
+        .args(args)
+        .stdout(Stdio::piped())
+        .spawn();
 }
 
 pub fn grep(output: Option<ChildStdout>, search: &str) -> bool {
@@ -14,7 +17,8 @@ pub fn grep(output: Option<ChildStdout>, search: &str) -> bool {
         .stdout(Stdio::piped())
         .output();
 
-    let response: String = String::from_utf8(filtered.unwrap().stdout).expect("Failed to convert stdout");
+    let response: String =
+        String::from_utf8(filtered.unwrap().stdout).expect("Failed to convert stdout");
 
     return response.contains(search);
 }
